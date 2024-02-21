@@ -72,6 +72,8 @@ spec:
                 description: For example, "* * * * *" represents a schedule that runs
                   every minute.
                 type: string
+              swipePolicy:
+                type: string
             required:
             - schedule
             type: object

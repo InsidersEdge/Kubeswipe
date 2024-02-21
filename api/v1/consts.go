@@ -20,3 +20,15 @@ const (
 	ResourceQuota         ResourceNames = "ResourceQuota"
 	Namespaces            ResourceNames = "Namespaces"
 )
+
+const (
+	AWS   CloudName = "AWS"
+	GCP   CloudName = "GCP"
+	Azure CloudName = "Azure"
+)
+
+const (
+	Low      SwipePolicyName = "low"
+	Moderate SwipePolicyName = "moderate"
+	High     SwipePolicyName = "high"
+)

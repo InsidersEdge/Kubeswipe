@@ -36,15 +36,12 @@ type ResourceCleanerSpec struct {
 	Resources     ResourcesSpec `json:"resources,omitempty"`
 	CloudProvider CloudName     `json:"cloudProvider,omitempty"`
 	Expire        metav1.Time   `json:"expire,omitempty"`
+	SwipePolicy   SwipePolicyName `json:"swipePolicy,omitempty"`
 }
 
-type CloudName string
+type SwipePolicyName string
 
-const (
-	AWS   CloudName = "AWS"
-	GCP   CloudName = "GCP"
-	Azure CloudName = "Azure"
-)
+type CloudName string
 
 type ResourcesSpec struct {
 	Include []Resource `json:"include,omitempty"`
