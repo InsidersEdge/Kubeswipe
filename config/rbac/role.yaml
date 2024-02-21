@@ -1,0 +1,32 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: manager-role
+rules:
+- apiGroups:
+  - kubeswipe.kubefit.com
+  resources:
+  - resourcecleaners
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - kubeswipe.kubefit.com
+  resources:
+  - resourcecleaners/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - kubeswipe.kubefit.com
+  resources:
+  - resourcecleaners/status
+  verbs:
+  - get
+  - patch
+  - update

@@ -1,0 +1,85 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.13.0
+  name: resourcecleaners.kubeswipe.kubefit.com
+spec:
+  group: kubeswipe.kubefit.com
+  names:
+    kind: ResourceCleaner
+    listKind: ResourceCleanerList
+    plural: resourcecleaners
+    singular: resourcecleaner
+  scope: Namespaced
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        description: ResourceCleaner is the Schema for the resourcecleaners API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: ResourceCleanerSpec defines the desired state of ResourceCleaner
+            properties:
+              cloudProvider:
+                type: string
+              expire:
+                format: date-time
+                type: string
+              resources:
+                properties:
+                  exclude:
+                    items:
+                      properties:
+                        backup:
+                          type: boolean
+                        name:
+                          type: string
+                        namespace:
+                          type: string
+                      required:
+                      - name
+                      type: object
+                    type: array
+                  include:
+                    items:
+                      properties:
+                        backup:
+                          type: boolean
+                        name:
+                          type: string
+                        namespace:
+                          type: string
+                      required:
+                      - name
+                      type: object
+                    type: array
+                type: object
+              schedule:
+                description: For example, "* * * * *" represents a schedule that runs
+                  every minute.
+                type: string
+            required:
+            - schedule
+            type: object
+          status:
+            description: ResourceCleanerStatus defines the observed state of ResourceCleaner
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
