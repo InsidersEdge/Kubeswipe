@@ -32,3 +32,8 @@ const (
 	Moderate SwipePolicyName = "moderate"
 	High     SwipePolicyName = "high"
 )
+
+const (
+	Serve   OperationName = "SERVE"
+	CleanUp OperationName = "CLEANUP"
+)

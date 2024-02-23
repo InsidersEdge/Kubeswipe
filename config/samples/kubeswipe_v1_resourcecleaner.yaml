@@ -13,4 +13,5 @@ spec:
     include:
     exclude:
   schedule: "@every 1m"
+  operation: CLEANUP
   # TODO(user): Add fields here

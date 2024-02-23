@@ -73,16 +73,10 @@ func (r *ResourceCleanerReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 
 	if len(cleaner.Spec.Resources.Include) == 0 && len(cleaner.Spec.Resources.Exclude) == 0 {
 		// if resource there then fetch and monitor them and apply logic
-		ununusedServices, err := services.GetAllUnusedServices(ctx, r.Client)
+		err := services.HandleALLUnusedServices(ctx, r.Client, *cleaner)
 		if err != nil {
-			logger.Error(err, "cant fetch the services")
+			logger.Error(err, "handling services")
 		}
-		// on the resources apply the main logic
-		err = services.DeleteUnunsedServices(ctx, r.Client, ununusedServices)
-		if err != nil {
-			logger.Error(err, "cant clean services")
-		}
-		logger.Info("succesfully cleaned services")
 	}
 
 	// reconcile after some specified duration based on the schedule
