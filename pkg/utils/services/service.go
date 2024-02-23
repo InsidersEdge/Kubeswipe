@@ -2,11 +2,13 @@ package services
 
 import (
 	"context"
+	"fmt"
 
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	c "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -18,7 +20,7 @@ type Service struct {
 func getUnusedServicesInNamespace(ctx context.Context, client client.Client, namespace string) ([]Service, error) {
 	endpointsList := v1.EndpointsList{}
 	logger := log.FromContext(ctx)
-	if err := client.List(context.TODO(), &endpointsList); err != nil {
+	if err := client.List(ctx, &endpointsList, &c.ListOptions{Namespace: namespace}); err != nil {
 		return nil, err
 	}
 
@@ -48,6 +50,7 @@ func GetAllUnusedServices(ctx context.Context, client client.Client) ([]Service,
 		if err != nil {
 			return nil, err
 		}
+		fmt.Println("length of unused services", len(unusedServices))
 		unusedServices = append(unusedServices, nsServices...)
 	}
 

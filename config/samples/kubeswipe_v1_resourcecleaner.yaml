@@ -12,5 +12,5 @@ spec:
   resources:
     include:
     exclude:
-  schedule: "@every 2s"
+  schedule: "@every 1m"
   # TODO(user): Add fields here
