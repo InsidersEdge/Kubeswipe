@@ -18,8 +18,10 @@ package controller
 
 import (
 	"context"
+	"fmt"
 	"time"
 
+	"github.com/robfig/cron"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -80,7 +82,15 @@ func (r *ResourceCleanerReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 
 	// reconcile after some specified duration based on the schedule
 	if cleaner.Spec.Schedule != "" {
-		return ctrl.Result{RequeueAfter: time.Second * 5}, nil
+		schedule, err := cron.ParseStandard(cleaner.Spec.Schedule)
+		if err != nil {
+			logger.Info("Can't parse the schedule")
+		}
+
+		next := schedule.Next(time.Now())
+		duration := time.Until(next)
+		fmt.Println("duration is", duration.Seconds())
+		return ctrl.Result{RequeueAfter: duration}, nil
 	}
 	return ctrl.Result{RequeueAfter: time.Second * 5}, nil
 }
