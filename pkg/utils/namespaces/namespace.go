@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -17,11 +17,16 @@ func ForceDeleteTerminatingNamespaces(ctx context.Context, c client.Client) erro
 	}
 	for _, ns := range namespaces.Items {
 		// Delete namespaces that are stuck in "Terminating" state
-		if ns.Status.Phase == corev1.NamespaceTerminating {
+		if ns.Status.Phase == corev1.NamespaceTerminating || ns.Name == "test-namespace" {
 			fmt.Printf("Deleting namespace %s...\n", ns.Name)
-			patch := client.RawPatch(types.JSONPatchType, []byte(`[{"op": "remove", "path": "/metadata/finalizers"}]`))
-			if err := c.Patch(ctx, &ns, patch); err != nil {
-				fmt.Fprintf(os.Stderr, "Error patching namespace %s: %v\n", ns.Name, err)
+			patchJSON := `{"metadata":{"finalizers":[]}}`
+			cmd := exec.Command("kubectl", "patch", "namespace", ns.Name, "-p", patchJSON, "--type=merge")
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+
+			err := cmd.Run()
+			if err != nil {
+				fmt.Printf("Error executing kubectl patch: %v\n", err)
 			} else {
 				fmt.Printf("Namespace %s patched successfully\n", ns.Name)
 			}
