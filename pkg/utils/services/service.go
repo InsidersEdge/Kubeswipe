@@ -9,7 +9,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	v1 "kubefit.com/kubeswipe/api/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	c "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -18,10 +17,10 @@ type Service struct {
 	Namespace string
 }
 
-func getUnusedServicesInNamespace(ctx context.Context, client client.Client, namespace string, operation string) ([]Service, error) {
+func getUnusedServicesInNamespace(ctx context.Context, c client.Client, namespace string, operation string) ([]Service, error) {
 	endpointsList := corev1.EndpointsList{}
 	logger := log.FromContext(ctx)
-	if err := client.List(ctx, &endpointsList, &c.ListOptions{Namespace: namespace}); err != nil {
+	if err := c.List(ctx, &endpointsList, &client.ListOptions{Namespace: namespace}); err != nil {
 		return nil, err
 	}
 
@@ -31,7 +30,7 @@ func getUnusedServicesInNamespace(ctx context.Context, client client.Client, nam
 			logger.Info("unused service found in namespace: " + namespace + " with name: " + endpoints.Name + " and namespace: " + endpoints.Namespace)
 			if operation == string(v1.CleanUp) {
 				service := corev1.Service{}
-				err := client.Get(ctx, types.NamespacedName{Name: endpoints.Name, Namespace: endpoints.Namespace}, &service)
+				err := c.Get(ctx, types.NamespacedName{Name: endpoints.Name, Namespace: endpoints.Namespace}, &service)
 				if err != nil {
 					if apierrors.IsNotFound(err) {
 						logger.Info("service " + service.Name + " not found")
@@ -41,7 +40,10 @@ func getUnusedServicesInNamespace(ctx context.Context, client client.Client, nam
 					}
 				}
 
-				err = client.Delete(ctx, &service)
+				err = c.Delete(ctx, &service)
+				if err != nil {
+					logger.Error(err, "error deleting service")
+				}
 				continue
 			}
 			unusedServices = append(unusedServices, Service{
@@ -54,15 +56,15 @@ func getUnusedServicesInNamespace(ctx context.Context, client client.Client, nam
 	return unusedServices, nil
 }
 
-func GetAllUnusedServices(ctx context.Context, client client.Client) ([]Service, error) {
+func GetAllUnusedServices(ctx context.Context, c client.Client) ([]Service, error) {
 	namespaces := &corev1.NamespaceList{}
-	if err := client.List(context.TODO(), namespaces); err != nil {
+	if err := c.List(context.TODO(), namespaces); err != nil {
 		return nil, err
 	}
 
 	var unusedServices []Service
 	for _, ns := range namespaces.Items {
-		nsServices, err := getUnusedServicesInNamespace(ctx, client, ns.Name, string(v1.Serve))
+		nsServices, err := getUnusedServicesInNamespace(ctx, c, ns.Name, string(v1.Serve))
 		if err != nil {
 			return nil, err
 		}
@@ -73,15 +75,15 @@ func GetAllUnusedServices(ctx context.Context, client client.Client) ([]Service,
 	return unusedServices, nil
 }
 
-func HandleALLUnusedServices(ctx context.Context, client client.Client, cleaner v1.ResourceCleaner) error {
+func HandleALLUnusedServices(ctx context.Context, c client.Client, cleaner v1.ResourceCleaner) error {
 	namespaces := &corev1.NamespaceList{}
-	if err := client.List(context.TODO(), namespaces); err != nil {
+	if err := c.List(context.TODO(), namespaces); err != nil {
 		return err
 	}
 
 	var unusedServices []Service
 	for _, ns := range namespaces.Items {
-		nsServices, err := getUnusedServicesInNamespace(ctx, client, ns.Name, string(cleaner.Spec.Operation))
+		nsServices, err := getUnusedServicesInNamespace(ctx, c, ns.Name, string(cleaner.Spec.Operation))
 		if err != nil {
 			return err
 		}
@@ -92,11 +94,11 @@ func HandleALLUnusedServices(ctx context.Context, client client.Client, cleaner 
 	return nil
 }
 
-func DeleteUnunsedServices(ctx context.Context, client client.Client, services []Service) error {
+func DeleteUnunsedServices(ctx context.Context, c client.Client, services []Service) error {
 	logger := log.FromContext(ctx)
 	for _, svc := range services {
 		service := corev1.Service{}
-		err := client.Get(ctx, types.NamespacedName{Name: svc.Name, Namespace: svc.Namespace}, &service)
+		err := c.Get(ctx, types.NamespacedName{Name: svc.Name, Namespace: svc.Namespace}, &service)
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				logger.Info("service " + service.Name + " not found")
@@ -106,7 +108,7 @@ func DeleteUnunsedServices(ctx context.Context, client client.Client, services [
 			}
 		}
 
-		err = client.Delete(ctx, &service)
+		err = c.Delete(ctx, &service)
 		if err != nil {
 			logger.Error(err, "error deleting service")
 			return err

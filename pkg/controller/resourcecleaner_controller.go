@@ -35,6 +35,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	kubeswipev1 "kubefit.com/kubeswipe/api/v1"
 	v1 "kubefit.com/kubeswipe/api/v1"
+	"kubefit.com/kubeswipe/pkg/utils"
 	"kubefit.com/kubeswipe/pkg/utils/services"
 )
 
@@ -71,12 +72,10 @@ func (r *ResourceCleanerReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		logger.Error(err, "failed to get the cleaner resource")
 	}
 
-	if len(cleaner.Spec.Resources.Include) == 0 && len(cleaner.Spec.Resources.Exclude) == 0 {
-		// if resource there then fetch and monitor them and apply logic
-		err := services.HandleALLUnusedServices(ctx, r.Client, *cleaner)
-		if err != nil {
-			logger.Error(err, "handling services")
-		}
+	err = utils.HandleALLUnusedResources(ctx, r.Client, *cleaner)
+
+	if err != nil {
+		logger.Error(err, "error handling unused resources")
 	}
 
 	// reconcile after some specified duration based on the schedule
