@@ -17,25 +17,19 @@ limitations under the License.
 package v1
 
 import (
-	"time"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-type MyTime struct {
-	time.Time
-}
-
 // ResourceCleanerSpec defines the desired state of ResourceCleaner
 type ResourceCleanerSpec struct {
 	// For example, "* * * * *" represents a schedule that runs every minute.
-	Schedule      string        `json:"schedule"`
-	Resources     ResourcesSpec `json:"resources,omitempty"`
-	CloudProvider CloudName     `json:"cloudProvider,omitempty"`
-	Expire        metav1.Time   `json:"expire,omitempty"`
+	Schedule      string          `json:"schedule,omitempty"`
+	Resources     ResourcesSpec   `json:"resources,omitempty"`
+	CloudProvider CloudName       `json:"cloudProvider,omitempty"`
+	Expire        metav1.Time     `json:"expire,omitempty"`
 	SwipePolicy   SwipePolicyName `json:"swipePolicy,omitempty"`
 }
 

@@ -18,13 +18,17 @@ package controller
 
 import (
 	"context"
+	"time"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	kubeswipev1 "kubefit.com/kubeswipe/api/v1"
+	v1 "kubefit.com/kubeswipe/api/v1"
+	"kubefit.com/kubeswipe/pkg/utils/services"
 )
 
 // ResourceCleanerReconciler reconciles a ResourceCleaner object
@@ -47,21 +51,38 @@ type ResourceCleanerReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.16.0/pkg/reconcile
 func (r *ResourceCleanerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = log.FromContext(ctx)
+	logger := log.FromContext(ctx)
 
-	// check for some proper loggers
-
-	// get the crd
+	cleaner := &v1.ResourceCleaner{}
 
 	// if resources empty then just return
+	err := r.Client.Get(ctx, req.NamespacedName, cleaner)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			logger.Info("cleaner not found")
+		}
+		logger.Error(err, "failed to get the cleaner resource")
+	}
 
-	// if resource there then fetch and monitor them and apply logic
-
-	// on the resources apply the main logic
+	if len(cleaner.Spec.Resources.Include) == 0 && len(cleaner.Spec.Resources.Exclude) == 0 {
+		// if resource there then fetch and monitor them and apply logic
+		ununusedServices, err := services.GetAllUnusedServices(ctx, r.Client)
+		if err != nil {
+			logger.Error(err, "cant fetch the services")
+		}
+		// on the resources apply the main logic
+		err = services.DeleteUnunsedServices(ctx, r.Client, ununusedServices)
+		if err != nil {
+			logger.Error(err, "cant clean services")
+		}
+		logger.Info("succesfully cleaned services")
+	}
 
 	// reconcile after some specified duration based on the schedule
-
-	return ctrl.Result{}, nil
+	if cleaner.Spec.Schedule != "" {
+		return ctrl.Result{RequeueAfter: time.Second * 5}, nil
+	}
+	return ctrl.Result{RequeueAfter: time.Second * 5}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
