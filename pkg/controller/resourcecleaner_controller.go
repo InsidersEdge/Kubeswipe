@@ -18,8 +18,15 @@ package controller
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
+	"github.com/robfig/cron"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -80,14 +87,53 @@ func (r *ResourceCleanerReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 
 	// reconcile after some specified duration based on the schedule
 	if cleaner.Spec.Schedule != "" {
-		return ctrl.Result{RequeueAfter: time.Second * 5}, nil
+		schedule, err := cron.ParseStandard(cleaner.Spec.Schedule)
+		if err != nil {
+			logger.Info("Can't parse the schedule")
+		}
+
+		next := schedule.Next(time.Now())
+		duration := time.Until(next)
+		fmt.Println("duration is", duration.Seconds())
+		return ctrl.Result{RequeueAfter: duration}, nil
 	}
 	return ctrl.Result{RequeueAfter: time.Second * 5}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *ResourceCleanerReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	logger := log.FromContext(context.Background())
+	mux := http.NewServeMux()
+	mux.HandleFunc("/getservice", r.GetServiceHandler)
+
+	// Create a context with cancel function
+	_, cancel := context.WithCancel(context.Background())
+
+	// Start HTTP server in a Goroutine
+	go func() {
+		server := &http.Server{Addr: ":5000", Handler: mux}
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.Error(err, "unable to start HTTP server")
+			cancel() // Cancel context on error to stop the server
+		}
+	}()
+
+	// Listen for SIGINT and SIGTERM signals to gracefully shut down the server
+	signalChan := make(chan os.Signal, 1)
+	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&kubeswipev1.ResourceCleaner{}).
 		Complete(r)
+}
+
+// GetServiceHandler handles requests to /getservice
+func (r *ResourceCleanerReconciler) GetServiceHandler(w http.ResponseWriter, req *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	unusedServices, err := services.GetAllUnusedServices(req.Context(), r.Client)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	json.NewEncoder(w).Encode(unusedServices)
 }
