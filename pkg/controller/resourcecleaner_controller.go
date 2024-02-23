@@ -109,9 +109,12 @@ func (r *ResourceCleanerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	// Create a context with cancel function
 	_, cancel := context.WithCancel(context.Background())
 
+	// Enable CORS middleware
+	handler := enableCORS(mux)
+
 	// Start HTTP server in a Goroutine
 	go func() {
-		server := &http.Server{Addr: ":5000", Handler: mux}
+		server := &http.Server{Addr: ":5000", Handler: handler}
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			logger.Error(err, "unable to start HTTP server")
 			cancel() // Cancel context on error to stop the server
@@ -136,4 +139,18 @@ func (r *ResourceCleanerReconciler) GetServiceHandler(w http.ResponseWriter, req
 		return
 	}
 	json.NewEncoder(w).Encode(unusedServices)
+}
+
+// enableCORS is a middleware function to enable CORS
+func enableCORS(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		if req.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		h.ServeHTTP(w, req)
+	})
 }
