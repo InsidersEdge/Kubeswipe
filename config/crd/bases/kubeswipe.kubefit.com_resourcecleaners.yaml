@@ -39,6 +39,8 @@ spec:
               expire:
                 format: date-time
                 type: string
+              operation:
+                type: string
               resources:
                 properties:
                   exclude:
@@ -74,6 +76,8 @@ spec:
                 type: string
               swipePolicy:
                 type: string
+            required:
+            - operation
             type: object
           status:
             description: ResourceCleanerStatus defines the observed state of ResourceCleaner

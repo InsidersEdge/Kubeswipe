@@ -31,7 +31,10 @@ type ResourceCleanerSpec struct {
 	CloudProvider CloudName       `json:"cloudProvider,omitempty"`
 	Expire        metav1.Time     `json:"expire,omitempty"`
 	SwipePolicy   SwipePolicyName `json:"swipePolicy,omitempty"`
+	Operation     OperationName   `json:"operation"`
 }
+
+type OperationName string
 
 type SwipePolicyName string
 
