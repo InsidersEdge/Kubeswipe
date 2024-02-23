@@ -90,7 +90,7 @@ func (r *ResourceCleanerReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		fmt.Println("duration is", duration.Seconds())
 		return ctrl.Result{RequeueAfter: duration}, nil
 	}
-	return ctrl.Result{RequeueAfter: time.Second * 5}, nil
+	return ctrl.Result{RequeueAfter: time.Second * 60}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
