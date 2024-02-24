@@ -1,0 +1,8 @@
+apiVersion: kubeswipe.kubefit.com/v1
+kind: ResourceCleaner
+metadata:
+  name: resourcecleaner-sample
+spec:
+  resources:
+  schedule: "@every 1m"
+  operation: CLEANUP
