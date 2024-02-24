@@ -33,6 +33,43 @@ Sometimes, resources go missing and never return. But with kubeswipe, you can en
 - You're in a dev cluster and don't want to repeatedly delete and reset dev dependencies.
 - You prioritize resource creation over deletion.
 
+### Usuage 
+
+```yaml
+apiVersion: kubeswipe.kubefit.com/v1
+kind: ResourceCleaner
+metadata:
+  name: resourcecleaner-sample
+spec:
+  resources:
+    include:
+      - name: Service
+        namespace: default
+        backup: false
+      - name: Pod
+        namespace: default
+        backup: false
+    exclude:
+      - name: Namespace
+        namespace: kube-system
+        backup: false
+  schedule: "@every 1m"
+  operation: CLEANUP
+```  
+
+If you want to hand pick the resources to include and exclude use the include and exclude fields under the resources or else if you leave them empty it becomes cluster wide for all supported resources by kubeswipe . 
+
+set schedule based on the time you want to schedule the reconcillation of the cleanup process 
+
+operation you can set CLEANUP or SERVE . CLEANUP finds used resources and cleans them automatically serve helps to just retrieve and delete it by clicking the button on the UI
+
+
+Future support features:
+- to track the deleted resources 
+- backup them via cloudprovider
+- reapply deleted resources
+- advance features with usuage of swipePolicy
+
 
 ### Running on the cluster
 
@@ -50,13 +87,6 @@ make install
 ```
 
 ## Contributing
-// TODO(user): Add detailed information on how you would like others to contribute to this project
-
-### How it works
-This project aims to follow the Kubernetes [Operator pattern](https://kubernetes.io/docs/concepts/extend-kubernetes/operator/).
-
-It uses [Controllers](https://kubernetes.io/docs/concepts/architecture/controller/),
-which provide a reconcile function responsible for synchronizing resources until the desired state is reached on the cluster.
 
 ### Test It Out
 1. Install the CRDs into the cluster:
@@ -82,7 +112,7 @@ make manifests
 
 **NOTE:** Run `make --help` for more information on all potential `make` targets
 
-More information can be found via the [Kubebuilder Documentation](https://book.kubebuilder.io/introduction.html)
+
 
 ## License
 
