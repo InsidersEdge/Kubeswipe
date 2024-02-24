@@ -1,0 +1,20 @@
+apiVersion: kubeswipe.kubefit.com/v1
+kind: ResourceCleaner
+metadata:
+  name: resourcecleaner-sample
+spec:
+  resources:
+    include:
+      - name: Service
+        namespace: default
+        backup: false
+      - name: Pod
+        namespace: default
+        backup: false
+    exclude:
+      - name: Namespace
+        namespace: kube-system
+        backup: false
+  schedule: "@every 1m"
+  operation: CLEANUP
+  # TODO(user): Add fields here
