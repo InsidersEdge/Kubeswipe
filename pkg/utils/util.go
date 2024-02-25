@@ -2,6 +2,7 @@ package utils
 
 import (
 	"context"
+	"fmt"
 
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -12,7 +13,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func HandleALLUnusedResources(ctx context.Context, client client.Client, cleaner v1.ResourceCleaner) error {
+func HandleAllUnusedResources(ctx context.Context, client client.Client, cleaner v1.ResourceCleaner) error {
 	logger := log.FromContext(ctx)
 	if len(cleaner.Spec.Resources.Include) == 0 && len(cleaner.Spec.Resources.Exclude) == 0 {
 		err := CleanAllResources(ctx, client, cleaner)
@@ -52,7 +53,7 @@ func HandleUnusedResourcesInSteps(ctx context.Context, client client.Client, cle
 			}
 		}
 		if resourceName == "Service" && included {
-			err := services.HandleALLUnusedServices(ctx, client, cleaner)
+			err := services.HandleAllUnusedServices(ctx, client, cleaner)
 			if err != nil {
 				logger.Error(err, "handling services")
 				return err
@@ -76,15 +77,22 @@ func CleanAllResources(ctx context.Context, client client.Client, cleaner v1.Res
 		logger.Error(err, "force deleting namespaces")
 		return err
 	}
-	err = services.HandleALLUnusedServices(ctx, client, cleaner)
+	err = services.HandleAllUnusedServices(ctx, client, cleaner)
 	if err != nil {
 		logger.Error(err, "handling services")
 		return err
 	}
 	err = pods.DeleteAllPendingAndFailedPods(ctx, client)
 	if err != nil {
-		logger.Error(err, "handling services")
+		logger.Error(err, "handling failed pods")
 		return err
 	}
+	fmt.Print("cleaning unused pods ...")
+	err = pods.DeleteAllUnusedPods(ctx, client)
+	if err != nil {
+		logger.Error(err, "handling useless pods")
+		return err
+	}
+
 	return nil
 }
