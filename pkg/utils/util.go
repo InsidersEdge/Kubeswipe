@@ -2,7 +2,6 @@ package utils
 
 import (
 	"context"
-	"fmt"
 
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -87,11 +86,14 @@ func CleanAllResources(ctx context.Context, client client.Client, cleaner v1.Res
 		logger.Error(err, "handling failed pods")
 		return err
 	}
-	fmt.Print("cleaning unused pods ...")
-	err = pods.DeleteAllUnusedPods(ctx, client)
-	if err != nil {
-		logger.Error(err, "handling useless pods")
-		return err
+
+	if cleaner.Spec.SwipePolicy == v1.Moderate {
+
+		err = pods.DeleteAllUnusedPods(ctx, client)
+		if err != nil {
+			logger.Error(err, "handling useless pods")
+			return err
+		}
 	}
 
 	return nil

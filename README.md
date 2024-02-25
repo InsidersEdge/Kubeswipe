@@ -55,6 +55,7 @@ spec:
         backup: false
   schedule: "@every 1m"
   operation: CLEANUP
+  swipePolicy: low
 ```  
 
 If you want to hand pick the resources to include and exclude use the include and exclude fields under the resources or else if you leave them empty it becomes cluster wide for all supported resources by kubeswipe . 
@@ -63,6 +64,8 @@ set schedule based on the time you want to schedule the reconcillation of the cl
 
 operation you can set CLEANUP or SERVE . CLEANUP finds used resources and cleans them automatically serve helps to just retrieve and delete it by clicking the button on the UI
 
+setting swipePolicy to low will just clean unused resources plainly . 
+setting swipePolicy to moderate will go a level deeper into wheather resources which seem to be used are actually used
 
 Future support features:
 - to track the deleted resources 
