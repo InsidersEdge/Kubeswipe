@@ -67,6 +67,15 @@ operation you can set CLEANUP or SERVE . CLEANUP finds used resources and cleans
 setting swipePolicy to low will just clean unused resources plainly . 
 setting swipePolicy to moderate will go a level deeper into wheather resources which seem to be used are actually used
 
+**Note**: Before setting swipePolicy to moderate please install the metrics-server 
+
+By running the command 
+
+```sh
+kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/download/v0.5.0/components.yaml
+```
+
+
 Future support features:
 - to track the deleted resources 
 - backup them via cloudprovider
