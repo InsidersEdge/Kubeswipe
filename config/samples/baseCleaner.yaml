@@ -4,5 +4,7 @@ metadata:
   name: resourcecleaner-sample
 spec:
   resources:
+    include:
+    exclude:
   schedule: "@every 1m"
   operation: CLEANUP

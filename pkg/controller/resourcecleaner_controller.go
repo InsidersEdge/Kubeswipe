@@ -72,7 +72,7 @@ func (r *ResourceCleanerReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		logger.Error(err, "failed to get the cleaner resource")
 	}
 
-	err = utils.HandleALLUnusedResources(ctx, r.Client, *cleaner)
+	err = utils.HandleAllUnusedResources(ctx, r.Client, *cleaner)
 
 	if err != nil {
 		logger.Error(err, "error handling unused resources")

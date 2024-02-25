@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -76,7 +75,6 @@ func GetAllUnusedServices(ctx context.Context, c client.Client) ([]Service, erro
 				errorsUtil.AggregateErrors(errors)
 			}
 		}
-		fmt.Println("length of unused services", len(unusedServices))
 		unusedServices = append(unusedServices, nsServices...)
 	}
 
@@ -87,7 +85,7 @@ func GetAllUnusedServices(ctx context.Context, c client.Client) ([]Service, erro
 	return unusedServices, nil
 }
 
-func HandleALLUnusedServices(ctx context.Context, c client.Client, cleaner v1.ResourceCleaner) error {
+func HandleAllUnusedServices(ctx context.Context, c client.Client, cleaner v1.ResourceCleaner) error {
 	var errors []error
 	namespaces := &corev1.NamespaceList{}
 	if err := c.List(context.TODO(), namespaces); err != nil {
@@ -100,7 +98,6 @@ func HandleALLUnusedServices(ctx context.Context, c client.Client, cleaner v1.Re
 		if err != nil {
 			errors = append(errors, err)
 		}
-		fmt.Println("length of unused services", len(unusedServices))
 		unusedServices = append(unusedServices, nsServices...)
 	}
 
