@@ -37,3 +37,5 @@ const (
 	Serve   OperationName = "SERVE"
 	CleanUp OperationName = "CLEANUP"
 )
+
+const SwipeDIR = "kubeswipe"
