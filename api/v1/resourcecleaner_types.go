@@ -43,12 +43,13 @@ type CloudName string
 type ResourcesSpec struct {
 	Include []Resource `json:"include,omitempty"`
 	Exclude []Resource `json:"exclude,omitempty"`
+	Backup    bool   `json:"backup,omitempty"`
+	BackupDir string `json:"backupDir,omitempty"`
 }
 
 type Resource struct {
 	Name      string `json:"name"`
 	Namespace string `json:"namespace,omitempty"`
-	Backup    bool   `json:"backup,omitempty"`
 }
 
 type ResourceNames string

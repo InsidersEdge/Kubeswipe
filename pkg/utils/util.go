@@ -6,6 +6,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	v1 "kubefit.com/kubeswipe/api/v1"
+	errorsUtil "kubefit.com/kubeswipe/pkg/utils/errors"
 	"kubefit.com/kubeswipe/pkg/utils/namespaces"
 	"kubefit.com/kubeswipe/pkg/utils/pods"
 	"kubefit.com/kubeswipe/pkg/utils/services"
@@ -45,7 +46,7 @@ func HandleUnusedResourcesInSteps(ctx context.Context, client client.Client, cle
 	logger := log.FromContext(ctx)
 	for resourceName, included := range resourceMap {
 		if resourceName == "Namespace" && included {
-			err := namespaces.ForceDeleteTerminatingNamespaces(ctx, client)
+			err := namespaces.ForceDeleteTerminatingNamespaces(ctx, client,cleaner)
 			if err != nil {
 				logger.Error(err, "force deleting namespaces")
 				return err
@@ -59,7 +60,7 @@ func HandleUnusedResourcesInSteps(ctx context.Context, client client.Client, cle
 			}
 		}
 		if resourceName == "Pod" && included {
-			err := pods.DeleteAllPendingAndFailedPods(ctx, client)
+			err := pods.DeleteAllPendingAndFailedPods(ctx, client, cleaner)
 			if err != nil {
 				logger.Error(err, "handling services")
 				return err
@@ -70,30 +71,31 @@ func HandleUnusedResourcesInSteps(ctx context.Context, client client.Client, cle
 }
 
 func CleanAllResources(ctx context.Context, client client.Client, cleaner v1.ResourceCleaner) error {
-	logger := log.FromContext(ctx)
-	err := namespaces.ForceDeleteTerminatingNamespaces(ctx, client)
+	var errors []error
+
+	err := namespaces.ForceDeleteTerminatingNamespaces(ctx, client, cleaner)
 	if err != nil {
-		logger.Error(err, "force deleting namespaces")
-		return err
+		errors = append(errors, err)
 	}
 	err = services.HandleAllUnusedServices(ctx, client, cleaner)
 	if err != nil {
-		logger.Error(err, "handling services")
-		return err
+		errors = append(errors, err)
 	}
-	err = pods.DeleteAllPendingAndFailedPods(ctx, client)
+
+	err = pods.DeleteAllPendingAndFailedPods(ctx, client, cleaner)
 	if err != nil {
-		logger.Error(err, "handling failed pods")
-		return err
+		errors = append(errors, err)
 	}
 
 	if cleaner.Spec.SwipePolicy == v1.Moderate {
-
-		err = pods.DeleteAllUnusedPods(ctx, client)
+		err = pods.DeleteAllUnusedPods(ctx, client,cleaner)
 		if err != nil {
-			logger.Error(err, "handling useless pods")
-			return err
+			errors = append(errors, err)
 		}
+	}
+
+	if len(errors) > 0 {
+		errorsUtil.AggregateErrors(errors)
 	}
 
 	return nil

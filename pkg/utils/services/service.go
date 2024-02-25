@@ -8,6 +8,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	v1 "kubefit.com/kubeswipe/api/v1"
 	errorsUtil "kubefit.com/kubeswipe/pkg/utils/errors"
+	filesUtil "kubefit.com/kubeswipe/pkg/utils/files"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -17,7 +18,7 @@ type Service struct {
 	Namespace string
 }
 
-func getUnusedServicesInNamespace(ctx context.Context, c client.Client, namespace string, operation string) ([]Service, error) {
+func deleteUnusedServicesInNamespace(ctx context.Context, c client.Client, namespace string, cleaner v1.ResourceCleaner) ([]Service, error) {
 	var errors []error
 	endpointsList := corev1.EndpointsList{}
 	logger := log.FromContext(ctx)
@@ -29,22 +30,26 @@ func getUnusedServicesInNamespace(ctx context.Context, c client.Client, namespac
 	for _, endpoints := range endpointsList.Items {
 		if len(endpoints.Subsets) == 0 {
 			logger.Info("unused service found in namespace: " + namespace + " with name: " + endpoints.Name + " and namespace: " + endpoints.Namespace)
-			if operation == string(v1.CleanUp) {
-				service := corev1.Service{}
-				err := c.Get(ctx, types.NamespacedName{Name: endpoints.Name, Namespace: endpoints.Namespace}, &service)
-				if err != nil {
-					if apierrors.IsNotFound(err) {
-						logger.Info("service " + service.Name + " not found")
-					} else {
-						errors = append(errors, err)
-					}
+			service := corev1.Service{}
+			err := c.Get(ctx, types.NamespacedName{Name: endpoints.Name, Namespace: endpoints.Namespace}, &service)
+			if err != nil {
+				if apierrors.IsNotFound(err) {
+					logger.Info("service " + service.Name + " not found")
+				} else {
+					errors = append(errors, err)
 				}
+			}
 
-				err = c.Delete(ctx, &service)
+			if cleaner.Spec.Resources.Backup {
+				err := filesUtil.CreateFile(service, "services", service.Name, cleaner)
 				if err != nil {
 					errors = append(errors, err)
 				}
-				continue
+			}
+
+			err = c.Delete(ctx, &service)
+			if err != nil {
+				errors = append(errors, err)
 			}
 			unusedServices = append(unusedServices, Service{
 				Name:      endpoints.Name,
@@ -60,7 +65,42 @@ func getUnusedServicesInNamespace(ctx context.Context, c client.Client, namespac
 	return unusedServices, nil
 }
 
-func GetAllUnusedServices(ctx context.Context, c client.Client) ([]Service, error) {
+func getUnusedServicesInNamespace(ctx context.Context, c client.Client, namespace string, cleaner v1.ResourceCleaner) ([]Service, error) {
+	var errors []error
+	endpointsList := corev1.EndpointsList{}
+	logger := log.FromContext(ctx)
+	if err := c.List(ctx, &endpointsList, &client.ListOptions{Namespace: namespace}); err != nil {
+		return nil, err
+	}
+
+	var unusedServices []Service
+	for _, endpoints := range endpointsList.Items {
+		if len(endpoints.Subsets) == 0 {
+			logger.Info("unused service found in namespace: " + namespace + " with name: " + endpoints.Name + " and namespace: " + endpoints.Namespace)
+			service := corev1.Service{}
+			err := c.Get(ctx, types.NamespacedName{Name: endpoints.Name, Namespace: endpoints.Namespace}, &service)
+			if err != nil {
+				if apierrors.IsNotFound(err) {
+					logger.Info("service " + service.Name + " not found")
+				} else {
+					errors = append(errors, err)
+				}
+			}
+			unusedServices = append(unusedServices, Service{
+				Name:      endpoints.Name,
+				Namespace: endpoints.Namespace,
+			})
+		}
+	}
+
+	if len(errors) > 0 {
+		errorsUtil.AggregateErrors(errors)
+	}
+
+	return unusedServices, nil
+}
+
+func GetAllUnusedServices(ctx context.Context, c client.Client, cleaner v1.ResourceCleaner) ([]Service, error) {
 	var errors []error
 	namespaces := &corev1.NamespaceList{}
 	if err := c.List(context.TODO(), namespaces); err != nil {
@@ -69,7 +109,7 @@ func GetAllUnusedServices(ctx context.Context, c client.Client) ([]Service, erro
 
 	var unusedServices []Service
 	for _, ns := range namespaces.Items {
-		nsServices, err := getUnusedServicesInNamespace(ctx, c, ns.Name, string(v1.Serve))
+		nsServices, err := getUnusedServicesInNamespace(ctx, c, ns.Name, cleaner)
 		if err != nil {
 			if len(errors) > 0 {
 				errorsUtil.AggregateErrors(errors)
@@ -92,13 +132,15 @@ func HandleAllUnusedServices(ctx context.Context, c client.Client, cleaner v1.Re
 		return err
 	}
 
-	var unusedServices []Service
+	// var unusedServices []Service
 	for _, ns := range namespaces.Items {
-		nsServices, err := getUnusedServicesInNamespace(ctx, c, ns.Name, string(cleaner.Spec.Operation))
-		if err != nil {
-			errors = append(errors, err)
+		if string(cleaner.Spec.Operation) == string(v1.CleanUp) {
+			_, err := deleteUnusedServicesInNamespace(ctx, c, ns.Name, cleaner)
+			if err != nil {
+				errors = append(errors, err)
+			}
 		}
-		unusedServices = append(unusedServices, nsServices...)
+		// unusedServices = append(unusedServices, nsServices...)
 	}
 
 	if len(errors) > 0 {
@@ -108,7 +150,7 @@ func HandleAllUnusedServices(ctx context.Context, c client.Client, cleaner v1.Re
 	return nil
 }
 
-func DeleteUnunsedServices(ctx context.Context, c client.Client, services []Service) error {
+func DeleteUnunsedServices(ctx context.Context, c client.Client, services []Service, cleaner v1.ResourceCleaner) error {
 	logger := log.FromContext(ctx)
 	var errors []error
 	for _, svc := range services {
@@ -118,6 +160,13 @@ func DeleteUnunsedServices(ctx context.Context, c client.Client, services []Serv
 			if apierrors.IsNotFound(err) {
 				logger.Info("service " + service.Name + " not found")
 			} else {
+				errors = append(errors, err)
+			}
+		}
+
+		if cleaner.Spec.Resources.Backup {
+			err := filesUtil.CreateFile(service, "services", service.Name, cleaner)
+			if err != nil {
 				errors = append(errors, err)
 			}
 		}

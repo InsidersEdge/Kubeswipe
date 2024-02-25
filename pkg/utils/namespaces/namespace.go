@@ -7,10 +7,14 @@ import (
 	"os/exec"
 
 	corev1 "k8s.io/api/core/v1"
+	v1 "kubefit.com/kubeswipe/api/v1"
+	errorsUtil "kubefit.com/kubeswipe/pkg/utils/errors"
+	filesUtil "kubefit.com/kubeswipe/pkg/utils/files"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func ForceDeleteTerminatingNamespaces(ctx context.Context, c client.Client) error {
+func ForceDeleteTerminatingNamespaces(ctx context.Context, c client.Client, cleaner v1.ResourceCleaner) error {
+	var errors []error
 	namespaces := &corev1.NamespaceList{}
 	if err := c.List(ctx, namespaces); err != nil {
 		return err
@@ -26,16 +30,30 @@ func ForceDeleteTerminatingNamespaces(ctx context.Context, c client.Client) erro
 
 			err := cmd.Run()
 			if err != nil {
-				fmt.Printf("Error executing kubectl patch: %v\n", err)
+				errors = append(errors, err)
 			} else {
 				fmt.Printf("Namespace %s patched successfully\n", ns.Name)
 			}
+			if cleaner.Spec.Resources.Backup {
+				err := filesUtil.CreateFile(ns, ns.Name, "namespaces", cleaner)
+				if err != nil {
+					errors = append(errors, err)
+				}
+			}
 			if err := c.Delete(ctx, &ns); err != nil {
-				fmt.Fprintf(os.Stderr, "Error deleting namespace %s: %v\n", ns.Name, err)
+				if cleaner.Spec.Resources.Backup {
+					err := filesUtil.CreateFile(ns, ns.Name, "namespaces", cleaner)
+					if err != nil {
+						errors = append(errors, err)
+					}
+				}
 			} else {
 				fmt.Printf("Namespace %s deleted successfully\n", ns.Name)
 			}
 		}
+	}
+	if len(errors) > 0 {
+		errorsUtil.AggregateErrors(errors)
 	}
 	return nil
 }

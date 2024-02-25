@@ -8,3 +8,4 @@ spec:
     exclude:
   schedule: "@every 1m"
   operation: CLEANUP
+  swipePolicy: moderate

@@ -43,11 +43,13 @@ spec:
                 type: string
               resources:
                 properties:
+                  backup:
+                    type: boolean
+                  backupDir:
+                    type: string
                   exclude:
                     items:
                       properties:
-                        backup:
-                          type: boolean
                         name:
                           type: string
                         namespace:
@@ -59,8 +61,6 @@ spec:
                   include:
                     items:
                       properties:
-                        backup:
-                          type: boolean
                         name:
                           type: string
                         namespace:

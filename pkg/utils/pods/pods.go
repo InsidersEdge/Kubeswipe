@@ -10,7 +10,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	metrics "k8s.io/metrics/pkg/client/clientset/versioned"
+	v1 "kubefit.com/kubeswipe/api/v1"
 	errorsUtil "kubefit.com/kubeswipe/pkg/utils/errors"
+	filesUtil "kubefit.com/kubeswipe/pkg/utils/files"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 )
@@ -23,7 +25,8 @@ const (
 	updateCountAnnotationKey = "update_count"
 )
 
-func DeleteAllPendingAndFailedPods(ctx context.Context, c client.Client) error {
+func DeleteAllPendingAndFailedPods(ctx context.Context, c client.Client, cleaner v1.ResourceCleaner) error {
+	fmt.Println("pending and failed pods")
 	pods := &corev1.PodList{}
 	if err := c.List(ctx, pods); err != nil {
 		return err
@@ -31,17 +34,42 @@ func DeleteAllPendingAndFailedPods(ctx context.Context, c client.Client) error {
 
 	var errors []error
 	for _, pod := range pods.Items {
+		fmt.Println("pod status phase", pod.Status.Phase)
 		switch pod.Status.Phase {
 		case corev1.PodFailed, corev1.PodSucceeded: // Add PodSucceeded case since we don't want to keep successful pods
+			if cleaner.Spec.Resources.Backup {
+				err := filesUtil.CreateFile(pod, "pods", pod.Name, cleaner)
+				if err != nil {
+					errors = append(errors, err)
+				}
+			}
+
 			err := c.Delete(ctx, &pod)
 			if err != nil {
 				errors = append(errors, err)
 			}
 		case corev1.PodPending:
 			continue // Skip pending pods
-		default:
-			continue // Ignore other phases
+
 		}
+
+		for _, status := range pod.Status.ContainerStatuses {
+			if !status.Ready {
+				if cleaner.Spec.Resources.Backup {
+					err := filesUtil.CreateFile(pod, "pods", pod.Name, cleaner)
+					if err != nil {
+						errors = append(errors, err)
+					}
+				}
+				err := c.Delete(ctx, &pod)
+				if err != nil {
+					errors = append(errors, err)
+				}
+				fmt.Println("deleted the pod", pod.Name)
+				continue
+			}
+		}
+
 	}
 
 	if len(errors) > 0 {
@@ -51,8 +79,9 @@ func DeleteAllPendingAndFailedPods(ctx context.Context, c client.Client) error {
 	return nil
 }
 
-func DeleteAllUnusedPods(ctx context.Context, c client.Client) error {
+func DeleteAllUnusedPods(ctx context.Context, c client.Client, cleaner v1.ResourceCleaner) error {
 	namespaces := &corev1.NamespaceList{}
+	var errors []error
 	config := config.GetConfigOrDie()
 	mc, err := metrics.NewForConfig(config)
 	if err != nil {
@@ -150,8 +179,14 @@ func DeleteAllUnusedPods(ctx context.Context, c client.Client) error {
 						}
 					}
 
-					// If update count exceeds deletion threshold, delete the pod 
+					// If update count exceeds deletion threshold, delete the pod
 					if updateCount >= deletionThreshold {
+						if cleaner.Spec.Resources.Backup {
+							err := filesUtil.CreateFile(pod, "pods", pod.Name, cleaner)
+							if err != nil {
+								errors = append(errors, err)
+							}
+						}
 						err = c.Delete(ctx, pod)
 						if err != nil {
 							return err
@@ -162,6 +197,10 @@ func DeleteAllUnusedPods(ctx context.Context, c client.Client) error {
 			}
 
 		}
+	}
+
+	if len(errors) > 0 {
+		errorsUtil.AggregateErrors(errors)
 	}
 
 	return nil

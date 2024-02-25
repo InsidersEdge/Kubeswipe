@@ -126,7 +126,30 @@ func (r *ResourceCleanerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 // GetServiceHandler handles requests to /getservice
 func (r *ResourceCleanerReconciler) GetServiceHandler(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	unusedServices, err := services.GetAllUnusedServices(req.Context(), r.Client)
+	cleaner := &v1.ResourceCleaner{}
+
+	logger := log.FromContext(context.TODO())
+	// if resources empty then just return
+	// Parse request body to extract namespace
+	var requestBody map[string]string
+	if err := json.NewDecoder(req.Body).Decode(&requestBody); err != nil {
+		http.Error(w, "Failed to decode request body", http.StatusBadRequest)
+		return
+	}
+	ns, ok := requestBody["namespace"]
+	name, ok := requestBody["name"]
+	if !ok {
+		http.Error(w, "Namespace not provided in request body", http.StatusBadRequest)
+		return
+	}
+	err := r.Client.Get(req.Context(), client.ObjectKey{Name: name, Namespace: ns}, cleaner)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			logger.Info("cleaner not found")
+		}
+		logger.Error(err, "failed to get the cleaner resource")
+	}
+	unusedServices, err := services.GetAllUnusedServices(req.Context(), r.Client, *cleaner)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
