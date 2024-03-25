@@ -91,7 +91,7 @@ Future support features:
 
 
 1. Build
-
+**Note**:Before running any of the make commands, replace $(CONTROLLER_GEN) in the Makefile with the environment variable of controller-gen on your system.
 ```sh
 make build
 ```
